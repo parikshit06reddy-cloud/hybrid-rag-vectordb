@@ -49,8 +49,8 @@ jobs:
       - name: Prune uv cache for CI
         run: uv cache prune --ci
 
-  deps-py314:
-    name: Dependencies (Python 3.14)
+  deps-py312:
+    name: Dependencies (Python 3.12)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -59,13 +59,13 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-          cache-suffix: "py314"
+          cache-suffix: "py312"
           save-cache: true
 
       - name: Install dependencies
@@ -129,24 +129,24 @@ jobs:
           path: pytest-results.xml
           retention-days: 30
 
-  test-py314:
-    name: Tests (Python 3.14)
+  test-py312:
+    name: Tests (Python 3.12)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: deps-py314
+    needs: deps-py312
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.12"
 
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: "pyproject.toml"
-          cache-suffix: "py314"
+          cache-suffix: "py312"
           save-cache: false
 
       - name: Install dependencies

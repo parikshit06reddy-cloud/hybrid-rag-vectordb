@@ -36,7 +36,9 @@ dependencies = [
     "deepeval==3.8.4",
     "haystack-ai>=2.24.1,<3.0.0",
     "voyage-embedders-haystack==1.10.0",
-    "sentence-transformers>=3.0,<5.0",
+    # SparseEncoder is required by vectordb.langchain.utils.sparse_embeddings.
+    # Keep within a bounded major for reproducibility while ensuring API availability.
+    "sentence-transformers>=5.0,<6.0",
     "fastembed-haystack>=1.4,<2.0",
     "datasets>=2.20,<4.0",
     "pymilvus==2.6.9",
@@ -246,4 +248,10 @@ exclude_lines = [
 
 [tool.bandit]
 exclude_dirs = ["/tests", "/.venv", "/build", "/dist"]
-skips = ["B101"]
+skips = [
+  "B101", # assert used
+  "B301", # pickle usage in controlled test/benchmark paths
+  "B311", # non-crypto random in sampling/benchmark paths
+  "B403", # pickle import in controlled paths
+  "B615", # HuggingFace dataset fetches are expected for benchmark corpora
+]

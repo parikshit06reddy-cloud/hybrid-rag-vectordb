@@ -89,7 +89,10 @@ def resolve_env_vars(value: Any, *, allow_missing: bool = False) -> Any:
 
         return re.sub(pattern, replacer, value)
     if isinstance(value, dict):
-        return {k: resolve_env_vars(v, allow_missing=allow_missing) for k, v in value.items()}
+        return {
+            k: resolve_env_vars(v, allow_missing=allow_missing)
+            for k, v in value.items()
+        }
     if isinstance(value, list):
         return [resolve_env_vars(item, allow_missing=allow_missing) for item in value]
     return value
