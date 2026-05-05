@@ -1,6 +1,47 @@
 version: 2
 updates:
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+  - package-ecosystem: github-actions
+    directory: /
     schedule:
-      interval: 'daily'
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - python
+    versioning-strategy: increase-if-necessary
+    groups:
+      langchain:
+        patterns:
+          - "langchain*"
+          - "langgraph*"
+      vector-stores:
+        patterns:
+          - "pinecone*"
+          - "weaviate*"
+          - "chromadb*"
+          - "pymilvus*"
+          - "qdrant*"
+      embeddings-eval:
+        patterns:
+          - "sentence-transformers*"
+          - "fastembed*"
+          - "deepeval*"
+          - "haystack*"
+          - "voyage*"
+      dev-tooling:
+        patterns:
+          - "ruff*"
+          - "mypy*"
+          - "bandit*"
+          - "pip-audit*"
+          - "pytest*"
+          - "pre-commit*"

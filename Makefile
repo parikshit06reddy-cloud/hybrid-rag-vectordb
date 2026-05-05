@@ -1,8 +1,10 @@
-.PHONY: sync test test-cov test-ci cov-report cov lint-typing lint-style lint-fmt lint-check lint-typos lint-all security-bandit security-audit security clean help
+.PHONY: sync lock lock-check test test-cov test-ci cov-report cov lint-typing lint-style lint-fmt lint-check lint-typos lint-all security-bandit security-audit security clean help
 
 help:
 	@echo "Available make targets:"
 	@echo "  make sync             - Sync project and install dependencies"
+	@echo "  make lock             - Regenerate uv.lock from pyproject.toml"
+	@echo "  make lock-check       - Verify uv.lock is up to date with pyproject.toml"
 	@echo "  make test             - Run unit tests"
 	@echo "  make test-cov         - Run tests with coverage collection"
 	@echo "  make test-ci          - Run tests with coverage + XML/junit output for CI"
@@ -21,6 +23,12 @@ help:
 
 sync:
 	uv sync --all-groups
+
+lock:
+	uv lock
+
+lock-check:
+	uv lock --check
 
 test:
 	uv run pytest tests -m "not integration"

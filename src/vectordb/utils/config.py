@@ -6,14 +6,18 @@ embedding model alias resolution.
 
 Key Features:
     - YAML Configuration: Load and parse YAML config files with automatic env var
-      substitution using ${VAR} or ${VAR:-default} syntax
-    - Logging Setup: Initialize loggers from configuration dictionaries
-    - Model Aliases: Resolve short embedding model names to full HuggingFace paths
-    - Dataset Limits: Predefined indexing and evaluation limits per dataset
+      substitution using ${VAR}, ${VAR:-default}, or ${VAR:?error} syntax.
+    - Logging Setup: Initialize loggers from configuration dictionaries.
+    - Model Aliases: Resolve short embedding model names to full HuggingFace paths.
+    - Dataset Limits: Predefined indexing and evaluation limits per dataset.
 
 Environment Variable Syntax:
-    - ${VAR}: Substitute with environment variable VAR, empty string if unset
-    - ${VAR:-default}: Substitute with VAR if set, otherwise use 'default'
+    - ${VAR}:           Substitute with VAR. Required: raises ``MissingEnvVarError``
+      if unset (was previously silently empty - that hid misconfigurations).
+    - ${VAR:-default}:  Substitute with VAR if set, otherwise use ``default``.
+    - ${VAR:?message}:  Substitute with VAR if set, otherwise raise
+      ``MissingEnvVarError`` with the provided message. Useful in YAML for
+      explicit, documented contracts.
 
 Usage:
     >>> from vectordb.utils.config import load_config, resolve_embedding_model
@@ -31,17 +35,30 @@ import yaml
 from vectordb.utils.logging import LoggerFactory
 
 
-def resolve_env_vars(value: Any) -> Any:
+class MissingEnvVarError(RuntimeError):
+    """Raised when a required environment variable is referenced but unset."""
+
+
+def resolve_env_vars(value: Any, *, allow_missing: bool = False) -> Any:
     """Resolve environment variables in configuration values.
 
-    Supports both simple ${VAR} and ${VAR:-default} syntax, including
-    multiple substitutions within a single string (e.g., "http://${HOST}:${PORT}").
+    Supports ``${VAR}``, ``${VAR:-default}``, and ``${VAR:?message}`` syntax,
+    including multiple substitutions within a single string (e.g.,
+    ``http://${HOST}:${PORT}``).
 
     Args:
-        value: The value to resolve, can be a string, dict, or list.
+        value: The value to resolve. Strings are scanned and substituted;
+            dicts and lists are walked recursively.
+        allow_missing: If True, fall back to an empty string for unset
+            ``${VAR}`` instead of raising. Defaults to False so that
+            configuration drift fails loudly.
 
     Returns:
         The resolved value with environment variables expanded.
+
+    Raises:
+        MissingEnvVarError: If a required ``${VAR}`` or ``${VAR:?msg}`` is
+            referenced but unset and ``allow_missing`` is False.
     """
     if isinstance(value, str):
         pattern = r"\$\{([^}]+)\}"
@@ -51,21 +68,60 @@ def resolve_env_vars(value: Any) -> Any:
             if ":-" in expr:
                 var, default = expr.split(":-", 1)
                 return os.environ.get(var, default)
-            return os.environ.get(expr, "")
+            if ":?" in expr:
+                var, message = expr.split(":?", 1)
+                resolved = os.environ.get(var)
+                if resolved is None or resolved == "":
+                    raise MissingEnvVarError(
+                        f"Required environment variable {var!r} is not set: {message}"
+                    )
+                return resolved
+            resolved = os.environ.get(expr)
+            if resolved is None:
+                if allow_missing:
+                    return ""
+                raise MissingEnvVarError(
+                    f"Required environment variable {expr!r} is not set. "
+                    f"Use ${{{expr}:-default}} for optional values or "
+                    f"${{{expr}:?reason}} for explicit error messages."
+                )
+            return resolved
 
         return re.sub(pattern, replacer, value)
     if isinstance(value, dict):
-        return {k: resolve_env_vars(v) for k, v in value.items()}
+        return {k: resolve_env_vars(v, allow_missing=allow_missing) for k, v in value.items()}
     if isinstance(value, list):
-        return [resolve_env_vars(item) for item in value]
+        return [resolve_env_vars(item, allow_missing=allow_missing) for item in value]
     return value
 
 
-def load_config(config_path: str) -> dict[str, Any]:
+def require_env(*names: str) -> None:
+    """Eagerly assert that all named environment variables are set.
+
+    Call this at process start to fail fast in production rather than partway
+    through pipeline execution.
+
+    Args:
+        *names: Environment variable names to require.
+
+    Raises:
+        MissingEnvVarError: If any of the names are unset or empty.
+    """
+    missing = [name for name in names if not os.environ.get(name)]
+    if missing:
+        raise MissingEnvVarError(
+            "Missing required environment variables: " + ", ".join(sorted(missing))
+        )
+
+
+def load_config(config_path: str, *, allow_missing: bool = False) -> dict[str, Any]:
     """Load configuration from a YAML file with environment variable resolution.
 
     Args:
         config_path: Path to the YAML configuration file.
+        allow_missing: If True, allow ``${VAR}`` placeholders with no value
+            to resolve to an empty string. Defaults to False to surface
+            misconfiguration immediately.
 
     Returns:
         Configuration dictionary with environment variables resolved.
@@ -73,10 +129,11 @@ def load_config(config_path: str) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If the configuration file does not exist.
         yaml.YAMLError: If the YAML file is malformed.
+        MissingEnvVarError: If a required environment variable is unset.
     """
     with open(config_path) as f:
         config = yaml.safe_load(f)
-    return resolve_env_vars(config)
+    return resolve_env_vars(config, allow_missing=allow_missing)
 
 
 def setup_logger(config: dict[str, Any]) -> logging.Logger:
