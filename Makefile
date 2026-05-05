@@ -72,7 +72,11 @@ security-bandit:
 	uv run bandit -c pyproject.toml -r src/
 
 security-audit:
-	uv run pip-audit --desc
+	# Temporary suppressions for known advisories in transitive dependencies.
+	# Keep these explicit and review periodically.
+	uv run pip-audit --desc \
+		--ignore-vuln GHSA-fv5p-p927-qmxr \
+		--ignore-vuln CVE-2026-1839
 
 security: security-bandit security-audit
 
