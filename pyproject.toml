@@ -43,7 +43,7 @@ dependencies = [
     "qdrant-client==1.16.2",
     "psutil>=5.9,<7.0",
     "click>=8.1,<9.0",
-    "pyarrow>=16,<22",
+    "pyarrow>=16,<25",
     "accelerate>=0.32,<2.0",
     "weave>=0.50,<1.0",
     "scikit-learn>=1.4,<2.0",
